@@ -1,6 +1,7 @@
 package logfmt
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -22,7 +23,6 @@ func Decode(input string) map[string]any {
 
 		switch {
 		case isEscaped:
-			// Handle escaped characters
 			switch char {
 			case 'n':
 				value.WriteRune('\n')
@@ -36,7 +36,6 @@ func Decode(input string) map[string]any {
 			isEscaped = false
 
 		case char == '\\':
-			// Start of an escape sequence
 			if isInQuotedValue {
 				isEscaped = true
 			} else if !isInKey {
@@ -44,7 +43,6 @@ func Decode(input string) map[string]any {
 			}
 
 		case char == '"':
-			// Toggle quoted value state
 			if isInQuotedValue {
 				isInQuotedValue = false
 			} else if isInKey || value.Len() == 0 {
@@ -54,18 +52,15 @@ func Decode(input string) map[string]any {
 			}
 
 		case char == '=' && !isInQuotedValue:
-			// Transition from key to value
 			isInKey = false
 
 		case (unicode.IsSpace(char) && !isInQuotedValue && !isInKey):
-			// End of a key-value pair
 			setNestedValue(result, strings.TrimSpace(key.String()), value.String())
 			key.Reset()
 			value.Reset()
 			isInKey = true
 
 		default:
-			// Accumulate characters
 			if isInKey {
 				key.WriteRune(char)
 			} else {
@@ -74,37 +69,137 @@ func Decode(input string) map[string]any {
 		}
 	}
 
-	// Add the last key-value pair if exists
 	if key.Len() > 0 {
 		setNestedValue(result, strings.TrimSpace(key.String()), value.String())
+	}
+
+	return convertMapsToSlices(result)
+}
+
+func setNestedValue(m map[string]any, key string, value string) {
+	parts := parsePath(key)
+	current := m
+
+	for i := 0; i < len(parts)-1; i++ {
+		part := parts[i]
+		if _, exists := current[part]; !exists {
+			current[part] = make(map[string]any)
+		}
+		current = current[part].(map[string]any)
+	}
+
+	current[parts[len(parts)-1]] = value
+}
+
+func parsePath(path string) []string {
+	var parts []string
+	var current strings.Builder
+
+	runes := []rune(path)
+	for i := 0; i < len(runes); i++ {
+		char := runes[i]
+
+		if char == '.' {
+			if current.Len() > 0 {
+				parts = append(parts, current.String())
+				current.Reset()
+			}
+			continue
+		}
+
+		if char == '[' {
+			if current.Len() > 0 {
+				parts = append(parts, current.String())
+				current.Reset()
+			}
+			// Find the closing bracket
+			for i < len(runes) && runes[i] != ']' {
+				current.WriteRune(runes[i])
+				i++
+			}
+			current.WriteRune(']')
+			parts = append(parts, current.String())
+			current.Reset()
+			continue
+		}
+
+		current.WriteRune(char)
+	}
+
+	if current.Len() > 0 {
+		parts = append(parts, current.String())
+	}
+
+	return parts
+}
+
+func convertMapsToSlices(data map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	for key, value := range data {
+		if nestedMap, ok := value.(map[string]any); ok {
+			if isArrayMap(nestedMap) {
+				result[key] = mapToSlice(nestedMap)
+			} else {
+				result[key] = convertMapsToSlices(nestedMap)
+			}
+		} else {
+			result[key] = value
+		}
 	}
 
 	return result
 }
 
-// setNestedValue sets a value in a nested map structure
-func setNestedValue(m map[string]any, key string, value string) {
-	parts := strings.Split(key, ".")
+func isArrayMap(m map[string]any) bool {
+	if len(m) == 0 {
+		return false
+	}
 
-	// Navigate or create nested maps
-	for i := 0; i < len(parts)-1; i++ {
-		part := parts[i]
-		if _, exists := m[part]; !exists {
-			m[part] = make(map[string]any)
+	for key := range m {
+		if !isArrayIndex(key) {
+			return false
 		}
+	}
+	return true
+}
 
-		// Type assert and update m to the nested map
-		switch nested := m[part].(type) {
-		case map[string]any:
-			m = nested
-		default:
-			// If not a map, replace with a new map
-			newNested := make(map[string]any)
-			m[part] = newNested
-			m = newNested
+func isArrayIndex(key string) bool {
+	if !strings.HasPrefix(key, "[") || !strings.HasSuffix(key, "]") {
+		return false
+	}
+
+	numStr := key[1 : len(key)-1]
+	_, err := strconv.Atoi(numStr)
+	return err == nil
+}
+
+func mapToSlice(m map[string]any) []any {
+	if len(m) == 0 {
+		return nil
+	}
+
+	maxIndex := -1
+	for key := range m {
+		index, _ := strconv.Atoi(key[1 : len(key)-1])
+		if index > maxIndex {
+			maxIndex = index
 		}
 	}
 
-	// Set the final value
-	m[parts[len(parts)-1]] = value
+	result := make([]any, maxIndex+1)
+	for key, value := range m {
+		index, _ := strconv.Atoi(key[1 : len(key)-1])
+		if nestedMap, ok := value.(map[string]any); ok {
+			if isArrayMap(nestedMap) {
+				result[index] = mapToSlice(nestedMap)
+			} else {
+				result[index] = convertMapsToSlices(nestedMap)
+			}
+		} else {
+			result[index] = value
+		}
+	}
+
+	return result
 }
