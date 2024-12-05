@@ -6,11 +6,42 @@ import (
 	"unicode"
 )
 
-func Decode(input string) map[string]any {
-	result := make(map[string]any)
+type DecodeOptions struct {
+	ParseTypes bool
+}
+
+func Decode(input string, opts ...DecodeOptions) any {
+	parseTypes := true
+	if len(opts) > 0 {
+		parseTypes = opts[0].ParseTypes
+	}
+
+	var result any = make(map[string]any)
+	isArrayRoot := true
 
 	input = strings.TrimSpace(input)
+	if input == "" {
+		return result
+	}
 
+	rootMap := make(map[string]any)
+	parseKeyValuePairs(input, rootMap, parseTypes)
+
+	for key := range rootMap {
+		parts := strings.Split(key, ".")
+		if !isArrayIndex(parts[0]) {
+			isArrayRoot = false
+			break
+		}
+	}
+
+	if isArrayRoot {
+		return mapToSlice(rootMap)
+	}
+	return convertMapsToSlices(rootMap)
+}
+
+func parseKeyValuePairs(input string, result map[string]any, parseTypes bool) {
 	var key strings.Builder
 	var value strings.Builder
 	var isInKey = true
@@ -55,10 +86,18 @@ func Decode(input string) map[string]any {
 			isInKey = false
 
 		case (unicode.IsSpace(char) && !isInQuotedValue && !isInKey):
-			setNestedValue(result, strings.TrimSpace(key.String()), value.String())
-			key.Reset()
-			value.Reset()
-			isInKey = true
+			if key.Len() > 0 {
+				var val any
+				if parseTypes {
+					val = parseValue(value.String())
+				} else {
+					val = value.String()
+				}
+				setNestedValue(result, strings.TrimSpace(key.String()), val)
+				key.Reset()
+				value.Reset()
+				isInKey = true
+			}
 
 		default:
 			if isInKey {
@@ -70,13 +109,17 @@ func Decode(input string) map[string]any {
 	}
 
 	if key.Len() > 0 {
-		setNestedValue(result, strings.TrimSpace(key.String()), value.String())
+		var val any
+		if parseTypes {
+			val = parseValue(value.String())
+		} else {
+			val = value.String()
+		}
+		setNestedValue(result, strings.TrimSpace(key.String()), val)
 	}
-
-	return convertMapsToSlices(result)
 }
 
-func setNestedValue(m map[string]any, key string, value string) {
+func setNestedValue(m map[string]any, key string, value any) {
 	parts := parsePath(key)
 	current := m
 
@@ -202,4 +245,28 @@ func mapToSlice(m map[string]any) []any {
 	}
 
 	return result
+}
+
+func parseValue(val string) any {
+	// Remove quotes if present
+	if len(val) >= 2 && val[0] == '"' && val[len(val)-1] == '"' {
+		return val[1 : len(val)-1]
+	}
+
+	if val == "null" {
+		return nil
+	}
+	if val == "true" {
+		return true
+	}
+	if val == "false" {
+		return false
+	}
+	if i, err := strconv.ParseInt(val, 10, 64); err == nil {
+		return i
+	}
+	if f, err := strconv.ParseFloat(val, 64); err == nil {
+		return f
+	}
+	return val
 }

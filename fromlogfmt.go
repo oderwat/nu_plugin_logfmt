@@ -19,6 +19,9 @@ func fromLogFmt() *nu.Command {
 			InputOutputTypes:     [][]string{{"String", "Any"}},
 			Usage:                `Convert from 'logfmt' format to Nushell Value.`,
 			AllowMissingExamples: true,
+			Named: []nu.Flag{
+				{Long: "typed", Short: "t", Desc: "Try to detect simple types in the input"},
+			},
 		},
 		Examples: nu.Examples{
 			{
@@ -35,7 +38,13 @@ func fromLogFmt() *nu.Command {
 	}
 }
 
+func parseTypes(flags nu.NamedParams) bool {
+	_, ok := flags["typed"]
+	return ok
+}
+
 func fromLogFmtHandler(ctx context.Context, call *nu.ExecCommand) error {
+	typed := parseTypes(call.Named)
 	switch in := call.Input.(type) {
 	case nil:
 		return nil
@@ -49,7 +58,7 @@ func fromLogFmtHandler(ctx context.Context, call *nu.ExecCommand) error {
 		default:
 			return fmt.Errorf("unsupported input value type %T", data)
 		}
-		fields := logfmt.Decode(string(buf))
+		fields := logfmt.Decode(string(buf), logfmt.DecodeOptions{ParseTypes: typed})
 		rv, err := asValue(fields)
 		if err != nil {
 			return fmt.Errorf("converting to Value: %w", err)
@@ -63,7 +72,7 @@ func fromLogFmtHandler(ctx context.Context, call *nu.ExecCommand) error {
 		if err != nil {
 			return fmt.Errorf("reding input: %w", err)
 		}
-		fields := logfmt.Decode(string(buf))
+		fields := logfmt.Decode(string(buf), logfmt.DecodeOptions{ParseTypes: typed})
 		rv, err := asValue(fields)
 		if err != nil {
 			return fmt.Errorf("converting to Value: %w", err)

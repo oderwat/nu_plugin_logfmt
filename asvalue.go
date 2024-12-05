@@ -7,7 +7,7 @@ import (
 
 func asValue(v any) (_ nu.Value, err error) {
 	switch in := v.(type) {
-	case uint64, float64, bool, string, []byte:
+	case int64, float64, bool, string, []byte:
 		return nu.Value{Value: in}, nil
 	case []any:
 		lst := make([]nu.Value, len(in))
@@ -25,6 +25,8 @@ func asValue(v any) (_ nu.Value, err error) {
 			}
 		}
 		return nu.Value{Value: rec}, nil
+	case nil:
+		return nu.Value{Value: nil}, nil
 	default:
 		return nu.Value{}, fmt.Errorf("unsupported value type %T", in)
 	}

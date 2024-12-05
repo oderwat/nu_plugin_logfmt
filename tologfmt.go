@@ -33,7 +33,7 @@ func toLogFmtHandler(ctx context.Context, call *nu.ExecCommand) error {
 	case nil:
 		return nil
 	case nu.Value:
-		v, err := toPlistValue(in)
+		v, err := toLogfmtValue(in)
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ func toLogFmtHandler(ctx context.Context, call *nu.ExecCommand) error {
 		}
 		defer close(out)
 		for v := range in {
-			v, err := toPlistValue(v)
+			v, err := toLogfmtValue(v)
 			if err != nil {
 				return err
 			}
@@ -57,11 +57,13 @@ func toLogFmtHandler(ctx context.Context, call *nu.ExecCommand) error {
 	}
 }
 
-func toPlistValue(v nu.Value) (nu.Value, error) {
+func toLogfmtValue(v nu.Value) (nu.Value, error) {
 	var buf []byte
-	var data map[string]any
-	data = fromValue(v).(map[string]interface{})
-	buf = []byte(logfmt.Encode(data))
+	if data, ok := fromValue(v).(map[string]interface{}); ok {
+		buf = []byte(logfmt.Encode(data))
+	} else if data, ok := fromValue(v).([]interface{}); ok {
+		buf = []byte(logfmt.Encode(data))
+	}
 	return nu.Value{Value: string(buf)}, nil
 }
 

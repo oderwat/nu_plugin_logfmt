@@ -26,10 +26,12 @@ or move it to your nushell plugins directory if you have one for that.
 
 The `from logfmt` command converts a logfmt string to a Nushell record.
 
+If the `--typed` flag is given. The function detect simple types.
+
 **Syntax:**
 
 ```nu
-<logfmt_string> | from logfmt
+<logfmt_string> | from logfmt [--typed]
 ```
 
 **Example:**
