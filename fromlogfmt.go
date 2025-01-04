@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/ainvaltin/nu-plugin/types"
 	"io"
 
 	"github.com/ainvaltin/nu-plugin"
@@ -15,9 +16,9 @@ func fromLogFmt() *nu.Command {
 		Signature: nu.PluginSignature{
 			Name:                 "from logfmt",
 			Category:             "Formats",
+			Desc:                 `Convert from 'logfmt' format to Nushell Value.`,
 			SearchTerms:          []string{"logfmt", "slog", "logging"},
-			InputOutputTypes:     [][]string{{"String", "Any"}},
-			Usage:                `Convert from 'logfmt' format to Nushell Value.`,
+			InputOutputTypes:     []nu.InOutTypes{{In: types.String(), Out: types.Any()}},
 			AllowMissingExamples: true,
 			Named: []nu.Flag{
 				{Long: "typed", Short: "t", Desc: "Try to detect simple types in the input"},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ainvaltin/nu-plugin"
+	"github.com/ainvaltin/nu-plugin/types"
 	"github.com/oderwat/nu_plugin_logfmt/logfmt"
 )
 
@@ -12,9 +13,9 @@ func toLogFmt() *nu.Command {
 		Signature: nu.PluginSignature{
 			Name:                 "to logfmt",
 			Category:             "Formats",
+			Desc:                 `Convert Nushell Value to 'logfmt' format.`,
 			SearchTerms:          []string{"logfmt", "slog", "logging"},
-			InputOutputTypes:     [][]string{{"Any", "String"}},
-			Usage:                `Convert Nushell Value to 'logfmt' format.`,
+			InputOutputTypes:     []nu.InOutTypes{{types.Any(), types.String()}},
 			AllowMissingExamples: true,
 		},
 		Examples: nu.Examples{
