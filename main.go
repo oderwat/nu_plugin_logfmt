@@ -17,7 +17,7 @@ func main() {
 			fromLogFmt(),
 			toLogFmt(),
 		},
-		"0.0.1",
+		"0.1.0",
 		nil,
 	)
 	if err != nil {
