@@ -15,7 +15,7 @@ Ensure you have Go installed on your system. You can download it from [here](htt
    ```bash
    go install github.com/oderwat/nu_plugin_logfmt@latest
    plugin add ~/go/bin/nu_plugin_logfmt
-   plugin use nu_plugin_logfmt
+   plugin use logfmt
    ```
 
 or move it to your nushell plugins directory if you have one for that.
